@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Order Entry - Hospitality Management</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen flex flex-col pb-28 md:pb-12">
+  <!-- Top Navigation Bar -->
+  <div id="navbar"></div>
+
+  <!-- Main Content Container -->
+  <main class="max-w-7xl w-full mx-auto px-4 sm:px-6 py-4 flex-1">
+    <!-- Screen Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+      <div>
+        <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Order Entry</h1>
+        <p class="text-xs sm:text-sm text-slate-500">Select table, items, and optional guest to place order.</p>
+      </div>
+
+      <!-- Table & Guest Selectors Header Bar -->
+      <div class="flex flex-wrap items-center gap-2">
+        <!-- Table Dropdown -->
+        <div class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-300 shadow-sm min-h-[44px]">
+          <span class="text-xs font-semibold text-slate-500 uppercase">Table:</span>
+          <select id="table-select" class="bg-transparent text-sm font-bold text-slate-800 focus:outline-none cursor-pointer">
+            <option value="">Select Table...</option>
+          </select>
+        </div>
+
+        <!-- Guest Status / Link -->
+        <div id="guest-pill" class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-300 shadow-sm min-h-[44px]">
+          <span class="text-xs font-semibold text-slate-500 uppercase">Guest:</span>
+          <span id="guest-name-display" class="text-sm font-medium text-slate-700">Walk-in</span>
+          <button id="clear-guest-btn" class="hidden text-xs text-rose-600 hover:text-rose-800 font-bold ml-1" title="Clear guest">&times;</button>
+          <a href="/static/guest.html" class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold ml-1">Change</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layout Grid: Menu on Left, Ticket on Right (Desktop) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      
+      <!-- LEFT COLUMN: Specials, House Specialties, and Menu Items -->
+      <div class="lg:col-span-8 flex flex-col gap-6">
+
+        <!-- HIGHLIGHT SECTION: Approved Specials & House Specialties -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Approved Specials Highlight Box -->
+          <div class="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-xl p-4 shadow-sm">
+            <div class="flex items-center justify-between mb-2">
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-200 text-amber-900 uppercase tracking-wide">
+                ⭐ Today's Approved Specials
+              </span>
+            </div>
+            <div id="specials-container" class="space-y-2 mt-2">
+              <p class="text-xs text-slate-500 italic">Loading today's specials...</p>
+            </div>
+          </div>
+
+          <!-- House Specialties Highlight Box -->
+          <div class="bg-gradient-to-br from-indigo-50 to-blue-50 border-2 border-indigo-200 rounded-xl p-4 shadow-sm">
+            <div class="flex items-center justify-between mb-2">
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-200 text-indigo-900 uppercase tracking-wide">
+                👑 House Specialties
+              </span>
+            </div>
+            <div id="house-specialties-container" class="space-y-2 mt-2">
+              <p class="text-xs text-slate-500 italic">Loading house specialties...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- CATEGORY NAVIGATION TABS -->
+        <div class="bg-white rounded-xl p-2 border border-slate-200 shadow-sm overflow-x-auto">
+          <div id="category-tabs" class="flex gap-2">
+            <button data-cat="all" class="cat-btn px-4 py-2 rounded-lg text-sm font-semibold transition-all min-h-[44px] bg-slate-900 text-white shadow-sm">
+              All Items
+            </button>
+            <button data-cat="Starters" class="cat-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-all min-h-[44px]">
+              Starters
+            </button>
+            <button data-cat="Mains" class="cat-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-all min-h-[44px]">
+              Mains
+            </button>
+            <button data-cat="Desserts" class="cat-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-all min-h-[44px]">
+              Desserts
+            </button>
+            <button data-cat="Drinks" class="cat-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-all min-h-[44px]">
+              Drinks
+            </button>
+          </div>
+        </div>
+
+        <!-- FULL MENU GRID -->
+        <div id="menu-items-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <p class="text-sm text-slate-500 py-6">Loading menu items...</p>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: Current Order Ticket (Sticky on Desktop) -->
+      <div class="lg:col-span-4 lg:sticky lg:top-20">
+        <div class="bg-white rounded-xl border border-slate-200 shadow-md p-4 flex flex-col max-h-[calc(100vh-6rem)]">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+            <div>
+              <h2 class="font-bold text-slate-900 text-base">Current Ticket</h2>
+              <p id="ticket-table-sub" class="text-xs text-slate-500">No table selected</p>
+            </div>
+            <button id="clear-ticket-btn" class="text-xs font-semibold text-rose-600 hover:text-rose-800 p-2 min-h-[44px]">
+              Clear
+            </button>
+          </div>
+
+          <!-- Order Items List in Ticket -->
+          <div id="ticket-items" class="py-3 space-y-3 overflow-y-auto flex-1 max-h-[350px]">
+            <div id="empty-ticket-msg" class="text-center py-8 text-slate-400 text-sm">
+              Ticket is empty.<br>Tap any menu item to add.
+            </div>
+          </div>
+
+          <!-- Ticket Footer: Totals and Save Button -->
+          <div class="pt-3 border-t border-slate-200 flex flex-col gap-3">
+            <div class="flex justify-between items-center text-sm">
+              <span class="text-slate-600">Total Items:</span>
+              <span id="ticket-count" class="font-bold text-slate-900">0</span>
+            </div>
+            <div class="flex justify-between items-center text-base font-bold">
+              <span class="text-slate-900">Total Amount:</span>
+              <span id="ticket-total" class="text-indigo-600 text-xl font-extrabold">$0.00</span>
+            </div>
+
+            <!-- Save Order Action Button -->
+            <button id="save-order-btn" class="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3.5 px-4 rounded-xl text-base shadow-sm transition-all flex items-center justify-center gap-2 min-h-[48px]" disabled>
+              <span>Save & Place Order</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Mobile Floating Order Summary Bar (shown on phone when items are added) -->
+  <div id="mobile-ticket-bar" class="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-300 shadow-xl p-3 z-30 flex items-center justify-between">
+    <div>
+      <span id="mobile-ticket-count" class="text-xs font-bold uppercase text-slate-500">0 items</span>
+      <div id="mobile-ticket-total" class="text-lg font-extrabold text-indigo-600">$0.00</div>
+    </div>
+    <button id="mobile-scroll-to-ticket" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-5 rounded-lg text-sm shadow min-h-[44px]">
+      View Ticket / Save
+    </button>
+  </div>
+
+  <script src="/static/app.js"></script>
+  <script>
+    // State management
+    let tables = [];
+    let menuItems = [];
+    let todaySpecials = [];
+    let currentGuest = null; // { customer_id, full_name }
+    let ticket = {}; // item_id -> { item, quantity, item_note }
+    let activeCategory = "all";
+
+    // Initialize Order Page
+    document.addEventListener("DOMContentLoaded", async () => {
+      renderNav("order");
+      await loadInitialData();
+      checkGuestUrlParam();
+    });
+
+    async function loadInitialData() {
+      try {
+        // Fetch tables, menu, and approved specials in parallel
+        const [tablesData, menuData, specialsData] = await Promise.all([
+          api("/api/tables"),
+          api("/api/menu"),
+          api("/api/specials?status=approved")
+        ]);
+
+        tables = tablesData || [];
+        menuItems = menuData || [];
+        todaySpecials = specialsData || [];
+
+        renderTableDropdown();
+        renderHighlights();
+        renderMenu();
+      } catch (err) {
+        showToast("Error loading menu or table data", "error");
+      }
+    }
+
+    // Check if customer_id is provided in URL query string (e.g. from guest card)
+    async function checkGuestUrlParam() {
+      const params = new URLSearchParams(window.location.search);
+      const custId = params.get("customer_id");
+      if (custId) {
+        try {
+          const card = await api(`/api/customers/${custId}/card`);
+          if (card) {
+            setGuest({ customer_id: card.customer_id, full_name: card.full_name });
+            showToast(`Guest set to ${card.full_name}`, "info");
+          }
+        } catch (e) {
+          console.error("Could not load guest from URL param:", e);
+        }
+      }
+    }
+
+    function setGuest(guest) {
+      currentGuest = guest;
+      const display = document.getElementById("guest-name-display");
+      const clearBtn = document.getElementById("clear-guest-btn");
+      if (guest) {
+        display.textContent = guest.full_name;
+        display.className = "text-sm font-bold text-indigo-700";
+        clearBtn.classList.remove("hidden");
+      } else {
+        display.textContent = "Walk-in";
+        display.className = "text-sm font-medium text-slate-700";
+        clearBtn.classList.add("hidden");
+      }
+    }
+
+    document.getElementById("clear-guest-btn").onclick = () => setGuest(null);
+
+    function renderTableDropdown() {
+      const select = document.getElementById("table-select");
+      select.innerHTML = '<option value="">Select Table...</option>' +
+        tables.map(t => `<option value="${t.table_id}">${t.table_label} (${t.seats} seats)</option>`).join("");
+
+      select.onchange = (e) => {
+        const sub = document.getElementById("ticket-table-sub");
+        const selected = tables.find(t => t.table_id == e.target.value);
+        sub.textContent = selected ? `For Table ${selected.table_label}` : "No table selected";
+        updateSaveButtonState();
+      };
+    }
+
+    // Render Highlights: Approved Specials and House Specialties
+    function renderHighlights() {
+      // 1. Approved Specials
+      const specialsContainer = document.getElementById("specials-container");
+      if (todaySpecials.length === 0) {
+        specialsContainer.innerHTML = '<p class="text-xs text-slate-500 italic">No approved specials for today yet.</p>';
+      } else {
+        specialsContainer.innerHTML = todaySpecials.map(s => `
+          <div class="flex items-center justify-between bg-white/90 p-2.5 rounded-lg border border-amber-200">
+            <div>
+              <div class="font-bold text-sm text-slate-900">${s.item_name}</div>
+              <div class="text-xs font-semibold text-amber-700">${formatMoney(s.price)}</div>
+            </div>
+            <button onclick="addToTicket(${s.item_id})" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold rounded-md text-xs min-h-[44px] flex items-center shadow-sm">
+              + Add
+            </button>
+          </div>
+        `).join("");
+      }
+
+      // 2. House Specialties
+      const houseContainer = document.getElementById("house-specialties-container");
+      const houseItems = menuItems.filter(i => i.is_house_specialty && i.is_available);
+      if (houseItems.length === 0) {
+        houseContainer.innerHTML = '<p class="text-xs text-slate-500 italic">No house specialties listed.</p>';
+      } else {
+        houseContainer.innerHTML = houseItems.map(h => `
+          <div class="flex items-center justify-between bg-white/90 p-2.5 rounded-lg border border-indigo-200">
+            <div>
+              <div class="font-bold text-sm text-slate-900">${h.item_name}</div>
+              <div class="text-xs font-semibold text-indigo-700">${formatMoney(h.price)}</div>
+            </div>
+            <button onclick="addToTicket(${h.item_id})" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-md text-xs min-h-[44px] flex items-center shadow-sm">
+              + Add
+            </button>
+          </div>
+        `).join("");
+      }
+    }
+
+    // Category Tabs Filter
+    document.querySelectorAll(".cat-btn").forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll(".cat-btn").forEach(b => {
+          b.className = "cat-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-all min-h-[44px]";
+        });
+        btn.className = "cat-btn px-4 py-2 rounded-lg text-sm font-semibold transition-all min-h-[44px] bg-slate-900 text-white shadow-sm";
+        activeCategory = btn.dataset.cat;
+        renderMenu();
+      };
+    });
+
+    // Render Menu Items
+    function renderMenu() {
+      const grid = document.getElementById("menu-items-grid");
+      const filtered = activeCategory === "all"
+        ? menuItems
+        : menuItems.filter(i => i.category_name === activeCategory);
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '<p class="col-span-2 text-sm text-slate-500 py-6">No items found in this category.</p>';
+        return;
+      }
+
+      grid.innerHTML = filtered.map(item => {
+        const isUnavailable = !item.is_available;
+        const disabledClass = isUnavailable ? "opacity-50 grayscale bg-slate-50 border-dashed" : "bg-white hover:border-indigo-400";
+        const badge = isUnavailable
+          ? '<span class="text-[10px] font-bold uppercase tracking-wider text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">Unavailable</span>'
+          : (item.is_house_specialty ? '<span class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">Specialty</span>' : '');
+
+        return `
+          <div class="border border-slate-200 rounded-xl p-3.5 flex flex-col justify-between shadow-sm transition-all ${disabledClass}">
+            <div>
+              <div class="flex items-start justify-between gap-1 mb-1">
+                <span class="font-bold text-sm text-slate-900 leading-snug">${item.item_name}</span>
+                ${badge}
+              </div>
+              <p class="text-xs text-slate-500 line-clamp-2 mb-2">${item.description || item.category_name}</p>
+            </div>
+            
+            <div class="flex items-center justify-between pt-2 border-t border-slate-100 mt-2">
+              <span class="text-sm font-extrabold text-slate-900">${formatMoney(item.price)}</span>
+              ${isUnavailable ? `
+                <span class="text-xs font-medium text-slate-400 italic">Greyed out</span>
+              ` : `
+                <button onclick="addToTicket(${item.item_id})" class="bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs px-3.5 py-2 rounded-lg shadow-sm transition-all min-h-[44px] flex items-center justify-center">
+                  + Add to Order
+                </button>
+              `}
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    // Ticket State Operations
+    window.addToTicket = function(itemId) {
+      const item = menuItems.find(i => i.item_id === itemId);
+      if (!item || !item.is_available) return;
+
+      if (!ticket[itemId]) {
+        ticket[itemId] = { item, quantity: 1, item_note: "" };
+      } else {
+        ticket[itemId].quantity += 1;
+      }
+      renderTicket();
+    };
+
+    window.updateTicketQty = function(itemId, delta) {
+      if (!ticket[itemId]) return;
+      ticket[itemId].quantity += delta;
+      if (ticket[itemId].quantity <= 0) {
+        delete ticket[itemId];
+      }
+      renderTicket();
+    };
+
+    window.updateTicketNote = function(itemId, note) {
+      if (ticket[itemId]) {
+        ticket[itemId].item_note = note;
+      }
+    };
+
+    document.getElementById("clear-ticket-btn").onclick = () => {
+      ticket = {};
+      renderTicket();
+    };
+
+    function renderTicket() {
+      const itemsContainer = document.getElementById("ticket-items");
+      const itemIds = Object.keys(ticket);
+
+      if (itemIds.length === 0) {
+        itemsContainer.innerHTML = `
+          <div id="empty-ticket-msg" class="text-center py-8 text-slate-400 text-sm">
+            Ticket is empty.<br>Tap any menu item to add.
+          </div>
+        `;
+        document.getElementById("ticket-count").textContent = "0";
+        document.getElementById("ticket-total").textContent = "$0.00";
+        document.getElementById("mobile-ticket-count").textContent = "0 items";
+        document.getElementById("mobile-ticket-total").textContent = "$0.00";
+        updateSaveButtonState();
+        return;
+      }
+
+      let totalCount = 0;
+      let totalAmount = 0.0;
+
+      itemsContainer.innerHTML = itemIds.map(id => {
+        const line = ticket[id];
+        const lineTotal = line.item.price * line.quantity;
+        totalCount += line.quantity;
+        totalAmount += lineTotal;
+
+        return `
+          <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+            <div class="flex items-start justify-between">
+              <div>
+                <div class="font-bold text-sm text-slate-900">${line.item.item_name}</div>
+                <div class="text-xs text-slate-500">${formatMoney(line.item.price)} each</div>
+              </div>
+              <div class="text-sm font-extrabold text-slate-900">${formatMoney(lineTotal)}</div>
+            </div>
+
+            <!-- Quantity Buttons -->
+            <div class="flex items-center justify-between mt-2 pt-2 border-t border-slate-200">
+              <input type="text" placeholder="Note (e.g. no onion)..." value="${line.item_note || ''}" 
+                oninput="updateTicketNote(${id}, this.value)"
+                class="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 w-36 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+              
+              <div class="flex items-center gap-1">
+                <button onclick="updateTicketQty(${id}, -1)" class="w-8 h-8 rounded bg-slate-200 hover:bg-slate-300 font-bold text-slate-800 flex items-center justify-center min-h-[44px] min-w-[44px]">
+                  -
+                </button>
+                <span class="w-6 text-center font-bold text-sm">${line.quantity}</span>
+                <button onclick="updateTicketQty(${id}, 1)" class="w-8 h-8 rounded bg-slate-200 hover:bg-slate-300 font-bold text-slate-800 flex items-center justify-center min-h-[44px] min-w-[44px]">
+                  +
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      document.getElementById("ticket-count").textContent = totalCount;
+      document.getElementById("ticket-total").textContent = formatMoney(totalAmount);
+      document.getElementById("mobile-ticket-count").textContent = `${totalCount} item${totalCount === 1 ? '' : 's'}`;
+      document.getElementById("mobile-ticket-total").textContent = formatMoney(totalAmount);
+
+      updateSaveButtonState();
+    }
+
+    function updateSaveButtonState() {
+      const tableId = document.getElementById("table-select").value;
+      const hasItems = Object.keys(ticket).length > 0;
+      const saveBtn = document.getElementById("save-order-btn");
+      saveBtn.disabled = !tableId || !hasItems;
+    }
+
+    // Save and place order
+    document.getElementById("save-order-btn").onclick = async () => {
+      const tableId = Number(document.getElementById("table-select").value);
+      if (!tableId) {
+        showToast("Please choose a table before saving.", "warning");
+        return;
+      }
+
+      const itemsPayload = Object.keys(ticket).map(id => ({
+        item_id: Number(id),
+        quantity: ticket[id].quantity,
+        item_note: ticket[id].item_note || ""
+      }));
+
+      const payload = {
+        table_id: tableId,
+        customer_id: currentGuest ? currentGuest.customer_id : null,
+        items: itemsPayload
+      };
+
+      const saveBtn = document.getElementById("save-order-btn");
+      saveBtn.disabled = true;
+      saveBtn.textContent = "Saving Order...";
+
+      try {
+        const order = await api("/api/orders", {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+
+        showToast(`Order #${order.order_id} recorded successfully!`, "success");
+
+        // Clear ticket and guest param
+        ticket = {};
+        renderTicket();
+        if (currentGuest) {
+          setGuest(null);
+          // Clean URL param
+          window.history.replaceState({}, document.title, "/static/index.html");
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        saveBtn.textContent = "Save & Place Order";
+        updateSaveButtonState();
+      }
+    };
+
+    // Mobile button scroll helper
+    document.getElementById("mobile-scroll-to-ticket").onclick = () => {
+      const ticketCol = document.querySelector(".lg\\:col-span-4");
+      if (ticketCol) {
+        ticketCol.scrollIntoView({ behavior: "smooth" });
+      }
+    };
+  </script>
+</body>
+</html>

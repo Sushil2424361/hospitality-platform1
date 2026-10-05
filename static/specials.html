@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Specials Management - Hospitality Management</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen flex flex-col pb-12">
+  <!-- Top Navigation Bar -->
+  <div id="navbar"></div>
+
+  <!-- Main Content Container -->
+  <main class="max-w-4xl w-full mx-auto px-4 sm:px-6 py-4 flex-1">
+    
+    <!-- Screen Header & Actions -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div>
+        <h1 id="page-title" class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Daily Specials</h1>
+        <p id="page-sub" class="text-xs sm:text-sm text-slate-500">
+          Ranked suggestions calculated from 7-day sales volume, profit margin, and recent trends.
+        </p>
+      </div>
+
+      <!-- Manager Controls: Generate Button and Date Picker -->
+      <div id="manager-controls" class="flex flex-wrap items-center gap-2">
+        <input 
+          id="specials-date-input" 
+          type="date" 
+          class="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs sm:text-sm font-semibold text-slate-700 min-h-[44px] shadow-sm cursor-pointer"
+        >
+        <button 
+          id="generate-btn" 
+          onclick="handleGenerateSpecials()"
+          class="bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-lg shadow-sm transition-all flex items-center gap-1.5 min-h-[44px]"
+        >
+          <span>⚡ Generate Specials</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Waiter Banner Notice (Shown only if role is Waiter) -->
+    <div id="waiter-notice" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-xs sm:text-sm text-amber-900 font-medium flex items-center justify-between">
+      <span>👀 <strong>Waiter View:</strong> Showing today's approved specials. Generation and approvals require Manager or Owner role.</span>
+    </div>
+
+    <!-- Specials Suggestions List Container -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+        <h2 id="list-heading" class="font-bold text-slate-900 text-base">Ranked Suggestions</h2>
+        <span id="suggestions-count" class="text-xs font-semibold bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">
+          0 items
+        </span>
+      </div>
+
+      <div id="specials-list" class="space-y-4">
+        <p class="text-sm text-slate-400 py-6 text-center">Loading specials...</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- SWAP MODAL DIALOG -->
+  <div id="swap-modal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6">
+      <h3 class="text-lg font-bold text-slate-900 mb-1">Swap Special Item</h3>
+      <p class="text-xs text-slate-500 mb-4">Select another available dish from the menu to feature instead:</p>
+
+      <select id="swap-item-select" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-sm text-slate-900 font-medium mb-6 min-h-[44px]">
+        <option value="">Choose replacement item...</option>
+      </select>
+
+      <div class="flex items-center justify-end gap-2">
+        <button onclick="closeSwapModal()" class="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 min-h-[44px]">
+          Cancel
+        </button>
+        <button id="confirm-swap-btn" onclick="confirmSwapItem()" class="px-5 py-2 rounded-lg text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm min-h-[44px]">
+          Confirm Swap
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+  <script>
+    let currentSpecials = [];
+    let menuItems = [];
+    let activeSwapSuggestionId = null;
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      renderNav("specials");
+      initRoleView();
+      await loadMenuItems();
+      await loadSpecials();
+    });
+
+    function initRoleView() {
+      const role = getRole();
+      const dateInput = document.getElementById("specials-date-input");
+      const todayStr = new Date().toISOString().split("T")[0];
+      
+      // Calculate tomorrow's date
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split("T")[0];
+
+      if (role === "Waiter") {
+        document.getElementById("manager-controls").classList.add("hidden");
+        document.getElementById("waiter-notice").classList.remove("hidden");
+        document.getElementById("page-title").textContent = "Today's Specials";
+        document.getElementById("page-sub").textContent = "Approved dishes featured for today's guests.";
+        dateInput.value = todayStr;
+      } else {
+        document.getElementById("manager-controls").classList.remove("hidden");
+        document.getElementById("waiter-notice").classList.add("hidden");
+        dateInput.value = tomorrowStr;
+      }
+
+      dateInput.onchange = () => loadSpecials();
+    }
+
+    async function loadMenuItems() {
+      try {
+        const items = await api("/api/menu");
+        menuItems = (items || []).filter(i => i.is_available && !i.is_house_specialty);
+      } catch (err) {
+        console.error("Failed to load menu for swap:", err);
+      }
+    }
+
+    async function loadSpecials() {
+      const dateInput = document.getElementById("specials-date-input");
+      const targetDate = dateInput.value;
+      const role = getRole();
+      const listContainer = document.getElementById("specials-list");
+
+      listContainer.innerHTML = '<p class="text-sm text-slate-400 py-6 text-center">Loading specials...</p>';
+
+      try {
+        // If waiter, only show approved specials
+        const query = role === "Waiter"
+          ? `/api/specials?date=${targetDate}&status=approved`
+          : `/api/specials?date=${targetDate}`;
+
+        const data = await api(query);
+        currentSpecials = data || [];
+        renderSpecialsList();
+      } catch (err) {
+        listContainer.innerHTML = `
+          <div class="bg-rose-50 border border-rose-200 rounded-xl p-4 text-center text-rose-700 text-sm">
+            Failed to load specials.
+          </div>
+        `;
+      }
+    }
+
+    function renderSpecialsList() {
+      const listContainer = document.getElementById("specials-list");
+      const role = getRole();
+      const isManagerOrOwner = role === "Manager" || role === "Owner";
+
+      document.getElementById("suggestions-count").textContent = `${currentSpecials.length} item${currentSpecials.length === 1 ? '' : 's'}`;
+
+      if (currentSpecials.length === 0) {
+        listContainer.innerHTML = `
+          <div class="text-center py-10 text-slate-400">
+            <div class="text-3xl mb-2">📋</div>
+            <p class="font-bold text-sm text-slate-600">No specials found for this date.</p>
+            ${isManagerOrOwner ? `
+              <p class="text-xs text-slate-400 mt-1">Click 'Generate Specials' above to run the scoring algorithm.</p>
+            ` : ''}
+          </div>
+        `;
+        return;
+      }
+
+      listContainer.innerHTML = currentSpecials.map((s, index) => {
+        let statusBadge = "";
+        if (s.status === "approved") {
+          statusBadge = '<span class="bg-emerald-100 text-emerald-800 text-[11px] font-extrabold uppercase px-2.5 py-1 rounded-full border border-emerald-200">Approved</span>';
+        } else if (s.status === "rejected") {
+          statusBadge = '<span class="bg-rose-100 text-rose-800 text-[11px] font-extrabold uppercase px-2.5 py-1 rounded-full border border-rose-200">Rejected</span>';
+        } else {
+          statusBadge = '<span class="bg-amber-100 text-amber-800 text-[11px] font-extrabold uppercase px-2.5 py-1 rounded-full border border-amber-200">Suggested</span>';
+        }
+
+        return `
+          <div class="border border-slate-200 rounded-xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:border-slate-300 ${s.status === 'rejected' ? 'opacity-60 bg-slate-50' : 'bg-white'}">
+            
+            <!-- Left Info -->
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-xs font-black text-slate-400">#${index + 1}</span>
+                <h3 class="font-bold text-base text-slate-900">${s.item_name}</h3>
+                <span class="text-xs font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                  ${formatMoney(s.price)}
+                </span>
+                ${statusBadge}
+              </div>
+
+              <!-- Plain-English Reason text from database scoring -->
+              <p class="text-xs sm:text-sm text-slate-600 font-medium mt-1 leading-relaxed">
+                💡 ${s.reason_text}
+              </p>
+
+              <div class="text-[11px] text-slate-400 mt-2 font-mono">
+                AI Score: ${(s.score * 100).toFixed(1)} / 100
+              </div>
+            </div>
+
+            <!-- Right Action Buttons (Manager/Owner only) -->
+            ${isManagerOrOwner ? `
+              <div class="flex items-center gap-2 flex-shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+                ${s.status !== 'approved' ? `
+                  <button onclick="updateSpecialStatus(${s.suggestion_id}, 'approved')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg shadow-sm min-h-[44px] flex items-center justify-center transition-all">
+                    ✓ Approve
+                  </button>
+                ` : ''}
+
+                ${s.status !== 'rejected' ? `
+                  <button onclick="updateSpecialStatus(${s.suggestion_id}, 'rejected')" class="bg-slate-200 hover:bg-rose-100 hover:text-rose-700 text-slate-700 font-bold text-xs px-3 py-2 rounded-lg min-h-[44px] flex items-center justify-center transition-all">
+                    ✕ Reject
+                  </button>
+                ` : ''}
+
+                <button onclick="openSwapModal(${s.suggestion_id})" class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs px-3 py-2 rounded-lg min-h-[44px] flex items-center justify-center transition-all">
+                  ⇄ Swap
+                </button>
+              </div>
+            ` : ''}
+
+          </div>
+        `;
+      }).join("");
+    }
+
+    async function handleGenerateSpecials() {
+      const dateInput = document.getElementById("specials-date-input");
+      const targetDate = dateInput.value;
+      const btn = document.getElementById("generate-btn");
+
+      btn.disabled = true;
+      btn.innerHTML = '<span>Running scoring...</span>';
+
+      try {
+        const res = await api(`/api/specials/generate?date=${targetDate}`, { method: "POST" });
+        showToast(`Generated ${res.count} ranked specials for ${res.date}!`, "success");
+        await loadSpecials();
+      } catch (err) {
+        console.error(err);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>⚡ Generate Specials</span>';
+      }
+    }
+
+    async function updateSpecialStatus(suggestionId, newStatus) {
+      try {
+        await api(`/api/specials/${suggestionId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ status: newStatus })
+        });
+        showToast(`Special ${newStatus}!`, "success");
+        await loadSpecials();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function openSwapModal(suggestionId) {
+      activeSwapSuggestionId = suggestionId;
+      const select = document.getElementById("swap-item-select");
+      select.innerHTML = '<option value="">Choose replacement item...</option>' +
+        menuItems.map(i => `<option value="${i.item_id}">${i.item_name} (${formatMoney(i.price)}) - ${i.category_name}</option>`).join("");
+
+      document.getElementById("swap-modal").classList.remove("hidden");
+    }
+
+    function closeSwapModal() {
+      document.getElementById("swap-modal").classList.add("hidden");
+      activeSwapSuggestionId = null;
+    }
+
+    async function confirmSwapItem() {
+      const select = document.getElementById("swap-item-select");
+      const newItemId = Number(select.value);
+
+      if (!newItemId) {
+        showToast("Please choose a replacement item.", "warning");
+        return;
+      }
+
+      try {
+        await api(`/api/specials/${activeSwapSuggestionId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ item_id: newItemId, status: "approved" })
+        });
+        showToast("Special successfully swapped and approved!", "success");
+        closeSwapModal();
+        await loadSpecials();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  </script>
+</body>
+</html>

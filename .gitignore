@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.pyc
+restaurant.db
+.env
+.pytest_cache/
+*.sqlite3

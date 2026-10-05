@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Guest Card - Hospitality Management</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen flex flex-col pb-12">
+  <!-- Top Navigation Bar -->
+  <div id="navbar"></div>
+
+  <!-- Main Content Container -->
+  <main class="max-w-4xl w-full mx-auto px-4 sm:px-6 py-4 flex-1">
+    <!-- Screen Header -->
+    <div class="mb-4">
+      <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Guest Search & Card</h1>
+      <p class="text-xs sm:text-sm text-slate-500">Lookup returning guests to review allergies, top dishes, and notes before serving.</p>
+    </div>
+
+    <!-- Search Input Box (Search as you type with debounce) -->
+    <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm mb-6">
+      <label for="guest-search-input" class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+        Search by Name or Phone:
+      </label>
+      <div class="relative">
+        <input 
+          id="guest-search-input" 
+          type="text" 
+          placeholder="Type name (e.g. Anna, Marco) or phone number..." 
+          class="w-full bg-slate-50 border border-slate-300 rounded-lg px-4 py-3 text-base text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white min-h-[48px]"
+          autocomplete="off"
+        >
+        <div id="search-spinner" class="hidden absolute right-3 top-3.5 text-xs text-indigo-600 font-semibold">
+          Searching...
+        </div>
+      </div>
+
+      <!-- Search Results Dropdown / Quick List -->
+      <div id="search-results" class="mt-3 divide-y divide-slate-100 max-h-56 overflow-y-auto">
+        <!-- Results populated dynamically -->
+      </div>
+    </div>
+
+    <!-- GUEST CARD CONTAINER (Initially empty or placeholder) -->
+    <div id="guest-card-container">
+      <div class="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-400 shadow-sm">
+        <div class="text-4xl mb-2">👤</div>
+        <h3 class="text-base font-bold text-slate-700">No Guest Selected</h3>
+        <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+          Type a name or phone number above and click on a guest to open their card with ONE single API call.
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <script src="/static/app.js"></script>
+  <script>
+    let searchDebounceTimeout = null;
+    let selectedCustomerId = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      renderNav("guest");
+      setupSearch();
+
+      // Check if URL has customer_id to open card directly
+      const params = new URLSearchParams(window.location.search);
+      const custId = params.get("id");
+      if (custId) {
+        loadGuestCard(custId);
+      } else {
+        // Show initial recent guests list
+        fetchCustomers("");
+      }
+    });
+
+    function setupSearch() {
+      const input = document.getElementById("guest-search-input");
+      input.addEventListener("input", (e) => {
+        clearTimeout(searchDebounceTimeout);
+        const query = e.target.value.trim();
+        document.getElementById("search-spinner").classList.remove("hidden");
+
+        searchDebounceTimeout = setTimeout(async () => {
+          await fetchCustomers(query);
+          document.getElementById("search-spinner").classList.add("hidden");
+        }, 250); // 250ms debounce
+      });
+    }
+
+    async function fetchCustomers(term) {
+      try {
+        const results = await api(`/api/customers?q=${encodeURIComponent(term)}`);
+        renderSearchResults(results || []);
+      } catch (err) {
+        console.error("Failed to search customers:", err);
+      }
+    }
+
+    function renderSearchResults(customers) {
+      const container = document.getElementById("search-results");
+      if (customers.length === 0) {
+        container.innerHTML = '<p class="text-xs text-slate-400 py-2">No matching guests found.</p>';
+        return;
+      }
+
+      container.innerHTML = customers.map(c => `
+        <div onclick="loadGuestCard(${c.customer_id})" class="py-2.5 px-3 hover:bg-indigo-50 rounded-lg cursor-pointer flex items-center justify-between transition-colors min-h-[44px]">
+          <div>
+            <span class="font-bold text-sm text-slate-900">${c.full_name}</span>
+            <span class="text-xs text-slate-500 ml-2">📞 ${c.phone}</span>
+          </div>
+          ${c.dietary_notes ? `
+            <span class="text-[11px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+              ⚠️ ${c.dietary_notes}
+            </span>
+          ` : '<span class="text-xs text-slate-400">Regular</span>'}
+        </div>
+      `).join("");
+    }
+
+    /**
+     * Loads the complete guest card with ONE API call
+     */
+    async function loadGuestCard(customerId) {
+      selectedCustomerId = customerId;
+      const cardContainer = document.getElementById("guest-card-container");
+      cardContainer.innerHTML = `
+        <div class="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-500 shadow-sm">
+          <p class="text-sm font-semibold">Loading guest profile with 1 API call...</p>
+        </div>
+      `;
+
+      try {
+        const card = await api(`/api/customers/${customerId}/card`);
+        renderGuestCard(card);
+      } catch (err) {
+        cardContainer.innerHTML = `
+          <div class="bg-rose-50 border border-rose-200 rounded-xl p-4 text-center text-rose-700 text-sm">
+            Failed to load guest card.
+          </div>
+        `;
+      }
+    }
+
+    function renderGuestCard(c) {
+      const cardContainer = document.getElementById("guest-card-container");
+
+      // Top 3 dishes badges
+      const topDishesHtml = c.top_dishes && c.top_dishes.length > 0
+        ? c.top_dishes.map((d, idx) => `
+            <div class="bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 flex items-center justify-between">
+              <span class="text-sm font-semibold text-slate-800">#${idx+1} ${d.item_name}</span>
+              <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">${d.total_qty} ordered</span>
+            </div>
+          `).join("")
+        : '<p class="text-xs text-slate-400 italic">No previous orders recorded yet.</p>';
+
+      // Staff notes list
+      const staffNotesHtml = c.staff_notes && c.staff_notes.length > 0
+        ? c.staff_notes.map(n => `
+            <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs flex flex-col gap-1">
+              <div class="flex items-center justify-between text-slate-500 font-medium">
+                <span class="font-bold text-slate-700">${n.author_role}</span>
+                <span>${n.created_at}</span>
+              </div>
+              <p class="text-slate-800 text-sm mt-0.5">${n.note_text}</p>
+            </div>
+          `).join("")
+        : '<p class="text-xs text-slate-400 italic">No staff notes yet.</p>';
+
+      // Format last visit
+      const lastVisitDisplay = c.last_visit && c.last_visit !== "Never"
+        ? c.last_visit.split(" ")[0]
+        : "Never";
+
+      cardContainer.innerHTML = `
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-md p-6 flex flex-col gap-6">
+          
+          <!-- Top Row: Profile info & Start Order Button -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-xl sm:text-2xl font-black text-slate-900">${c.full_name}</h2>
+                <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono font-bold">ID: #${c.customer_id}</span>
+              </div>
+              <div class="text-xs sm:text-sm text-slate-500 mt-1 flex flex-wrap gap-x-4">
+                <span>📞 ${c.phone}</span>
+                ${c.email ? `<span>✉️ ${c.email}</span>` : ''}
+              </div>
+            </div>
+
+            <!-- Quick Start Order Action -->
+            <a href="/static/index.html?customer_id=${c.customer_id}" class="bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold px-5 py-2.5 rounded-xl shadow-sm text-sm flex items-center justify-center gap-2 min-h-[44px]">
+              <span>Start Order for ${c.full_name.split(' ')[0]} &rarr;</span>
+            </a>
+          </div>
+
+          <!-- CRITICAL: DIETARY NOTES / ALLERGIES IN RED -->
+          <div class="p-4 rounded-xl border-2 ${c.dietary_notes ? 'bg-red-50 border-red-400' : 'bg-slate-50 border-slate-200'}">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-xs font-black uppercase tracking-wider ${c.dietary_notes ? 'text-red-700' : 'text-slate-500'}">
+                ⚠️ Dietary Notes & Allergies (Stored Field)
+              </span>
+            </div>
+            <div class="text-base font-extrabold ${c.dietary_notes ? 'text-red-600' : 'text-slate-400 italic'}">
+              ${c.dietary_notes ? c.dietary_notes : 'None recorded for this guest.'}
+            </div>
+          </div>
+
+          <!-- Stats Grid: Visits and Last Visit -->
+          <div class="grid grid-cols-2 gap-4">
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <div class="text-xs font-semibold text-slate-500 uppercase">Total Visits</div>
+              <div class="text-2xl font-black text-slate-900 mt-1">${c.visit_count}</div>
+            </div>
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <div class="text-xs font-semibold text-slate-500 uppercase">Last Visit</div>
+              <div class="text-xl sm:text-2xl font-black text-slate-900 mt-1">${lastVisitDisplay}</div>
+            </div>
+          </div>
+
+          <!-- Top 3 Dishes -->
+          <div>
+            <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wide mb-2">⭐ Top 3 Favorite Dishes</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              ${topDishesHtml}
+            </div>
+          </div>
+
+          <!-- Staff Notes Section -->
+          <div class="pt-4 border-t border-slate-200">
+            <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wide mb-3">📝 Staff Notes & Preferences</h3>
+            
+            <!-- Existing Notes List -->
+            <div id="notes-list" class="space-y-2 mb-4 max-h-56 overflow-y-auto">
+              ${staffNotesHtml}
+            </div>
+
+            <!-- Add Note Form Box -->
+            <div class="flex flex-col sm:flex-row gap-2 mt-3">
+              <input 
+                id="new-note-text" 
+                type="text" 
+                placeholder="Add private staff note (e.g. prefers quiet table, birthday regular)..."
+                class="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[44px]"
+              >
+              <button 
+                id="add-note-btn" 
+                onclick="submitStaffNote()"
+                class="bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm px-5 py-2.5 rounded-lg min-h-[44px] flex items-center justify-center transition-all shadow-sm flex-shrink-0"
+              >
+                Add Note
+              </button>
+            </div>
+          </div>
+
+        </div>
+      `;
+    }
+
+    async function submitStaffNote() {
+      const input = document.getElementById("new-note-text");
+      const noteText = input.value.trim();
+      if (!noteText) {
+        showToast("Please enter a note first.", "warning");
+        return;
+      }
+
+      const btn = document.getElementById("add-note-btn");
+      btn.disabled = true;
+      btn.textContent = "Saving...";
+
+      try {
+        const createdNote = await api(`/api/customers/${selectedCustomerId}/notes`, {
+          method: "POST",
+          body: JSON.stringify({ note_text: noteText })
+        });
+
+        showToast("Staff note added!", "success");
+        input.value = "";
+
+        // Prepend note to the list without reloading the whole card
+        const list = document.getElementById("notes-list");
+        const emptyMsg = list.querySelector("p");
+        if (emptyMsg) emptyMsg.remove();
+
+        const newNoteElement = document.createElement("div");
+        newNoteElement.className = "bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-xs flex flex-col gap-1 transition-all";
+        newNoteElement.innerHTML = `
+          <div class="flex items-center justify-between text-slate-500 font-medium">
+            <span class="font-bold text-emerald-800">${createdNote.author_role} (Just now)</span>
+            <span>${createdNote.created_at}</span>
+          </div>
+          <p class="text-slate-800 text-sm mt-0.5">${createdNote.note_text}</p>
+        `;
+        list.prepend(newNoteElement);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Add Note";
+      }
+    }
+  </script>
+</body>
+</html>
