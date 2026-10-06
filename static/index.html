@@ -3,8 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Order Entry - Hospitality Management</title>
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="description" content="Internal restaurant order entry and menu ticketing system.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Dakshin Flavors | Order Entry</title>
   <link rel="manifest" href="/static/manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/static/icon.svg">
+  <link rel="apple-touch-icon" href="/static/icon-192.png">
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen flex flex-col pb-28 md:pb-12">
@@ -74,23 +80,9 @@
         </div>
 
         <!-- CATEGORY NAVIGATION TABS -->
-        <div class="bg-white rounded-xl p-2 border border-slate-200 shadow-sm overflow-x-auto">
+        <div class="bg-white rounded-xl p-2 border border-slate-200 shadow-sm overflow-x-auto scrollbar-none">
           <div id="category-tabs" class="flex gap-2">
-            <button data-cat="all" class="cat-btn px-4 py-2 rounded-lg text-sm font-semibold transition-all min-h-[44px] bg-slate-900 text-white shadow-sm">
-              All Items
-            </button>
-            <button data-cat="Starters" class="cat-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-all min-h-[44px]">
-              Starters
-            </button>
-            <button data-cat="Mains" class="cat-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-all min-h-[44px]">
-              Mains
-            </button>
-            <button data-cat="Desserts" class="cat-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-all min-h-[44px]">
-              Desserts
-            </button>
-            <button data-cat="Drinks" class="cat-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-all min-h-[44px]">
-              Drinks
-            </button>
+            <!-- Dynamically populated from /api/menu categories -->
           </div>
         </div>
 
@@ -128,7 +120,7 @@
             </div>
             <div class="flex justify-between items-center text-base font-bold">
               <span class="text-slate-900">Total Amount:</span>
-              <span id="ticket-total" class="text-indigo-600 text-xl font-extrabold">$0.00</span>
+              <span id="ticket-total" class="text-indigo-600 text-xl font-extrabold">₹0</span>
             </div>
 
             <!-- Save Order Action Button -->
@@ -146,7 +138,7 @@
   <div id="mobile-ticket-bar" class="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-300 shadow-xl p-3 z-30 flex items-center justify-between">
     <div>
       <span id="mobile-ticket-count" class="text-xs font-bold uppercase text-slate-500">0 items</span>
-      <div id="mobile-ticket-total" class="text-lg font-extrabold text-indigo-600">$0.00</div>
+      <div id="mobile-ticket-total" class="text-lg font-extrabold text-indigo-600">₹0</div>
     </div>
     <button id="mobile-scroll-to-ticket" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-5 rounded-lg text-sm shadow min-h-[44px]">
       View Ticket / Save
@@ -185,6 +177,7 @@
 
         renderTableDropdown();
         renderHighlights();
+        renderCategoryTabs();
         renderMenu();
       } catch (err) {
         showToast("Error loading menu or table data", "error");
@@ -278,60 +271,118 @@
       }
     }
 
-    // Category Tabs Filter
-    document.querySelectorAll(".cat-btn").forEach(btn => {
-      btn.onclick = () => {
-        document.querySelectorAll(".cat-btn").forEach(b => {
-          b.className = "cat-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-all min-h-[44px]";
-        });
-        btn.className = "cat-btn px-4 py-2 rounded-lg text-sm font-semibold transition-all min-h-[44px] bg-slate-900 text-white shadow-sm";
-        activeCategory = btn.dataset.cat;
-        renderMenu();
-      };
-    });
+    // Render Category Tabs dynamically from menu items
+    function renderCategoryTabs() {
+      const container = document.getElementById("category-tabs");
+      if (!container) return;
 
-    // Render Menu Items
-    function renderMenu() {
-      const grid = document.getElementById("menu-items-grid");
-      const filtered = activeCategory === "all"
-        ? menuItems
-        : menuItems.filter(i => i.category_name === activeCategory);
+      const categories = ["all"];
+      menuItems.forEach(i => {
+        if (!categories.includes(i.category_name)) {
+          categories.push(i.category_name);
+        }
+      });
 
-      if (filtered.length === 0) {
-        grid.innerHTML = '<p class="col-span-2 text-sm text-slate-500 py-6">No items found in this category.</p>';
-        return;
-      }
-
-      grid.innerHTML = filtered.map(item => {
-        const isUnavailable = !item.is_available;
-        const disabledClass = isUnavailable ? "opacity-50 grayscale bg-slate-50 border-dashed" : "bg-white hover:border-indigo-400";
-        const badge = isUnavailable
-          ? '<span class="text-[10px] font-bold uppercase tracking-wider text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">Unavailable</span>'
-          : (item.is_house_specialty ? '<span class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">Specialty</span>' : '');
+      container.innerHTML = categories.map(cat => {
+        const isAll = cat === "all";
+        const label = isAll ? "All Items" : cat;
+        const isActive = activeCategory === cat;
+        const activeClasses = isActive
+          ? "bg-slate-900 text-white shadow-sm font-bold"
+          : "text-slate-600 hover:bg-slate-100 font-medium";
 
         return `
-          <div class="border border-slate-200 rounded-xl p-3.5 flex flex-col justify-between shadow-sm transition-all ${disabledClass}">
-            <div>
-              <div class="flex items-start justify-between gap-1 mb-1">
-                <span class="font-bold text-sm text-slate-900 leading-snug">${item.item_name}</span>
-                ${badge}
-              </div>
-              <p class="text-xs text-slate-500 line-clamp-2 mb-2">${item.description || item.category_name}</p>
+          <button data-cat="${cat}" class="cat-btn px-4 py-2 rounded-lg text-xs sm:text-sm transition-all min-h-[44px] whitespace-nowrap ${activeClasses}">
+            ${label}
+          </button>
+        `;
+      }).join("");
+
+      container.querySelectorAll(".cat-btn").forEach(btn => {
+        btn.onclick = () => {
+          activeCategory = btn.dataset.cat;
+          renderCategoryTabs();
+          renderMenu();
+        };
+      });
+    }
+
+    // Render single menu item card
+    function renderItemCard(item) {
+      const isUnavailable = !item.is_available;
+      const disabledClass = isUnavailable ? "opacity-50 grayscale bg-slate-50 border-dashed" : "bg-white hover:border-indigo-400";
+      const badge = isUnavailable
+        ? '<span class="text-[10px] font-bold uppercase tracking-wider text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">Unavailable</span>'
+        : (item.is_house_specialty ? '<span class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">Specialty</span>' : '');
+
+      return `
+        <div class="border border-slate-200 rounded-xl p-3.5 flex flex-col justify-between shadow-sm transition-all ${disabledClass}">
+          <div>
+            <div class="flex items-start justify-between gap-1 mb-1">
+              <span class="font-bold text-sm text-slate-900 leading-snug">${item.item_name}</span>
+              ${badge}
             </div>
-            
-            <div class="flex items-center justify-between pt-2 border-t border-slate-100 mt-2">
-              <span class="text-sm font-extrabold text-slate-900">${formatMoney(item.price)}</span>
-              ${isUnavailable ? `
-                <span class="text-xs font-medium text-slate-400 italic">Greyed out</span>
-              ` : `
-                <button onclick="addToTicket(${item.item_id})" class="bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs px-3.5 py-2 rounded-lg shadow-sm transition-all min-h-[44px] flex items-center justify-center">
-                  + Add to Order
-                </button>
-              `}
+            <p class="text-xs text-slate-500 line-clamp-2 mb-2">${item.description || item.category_name}</p>
+          </div>
+          
+          <div class="flex items-center justify-between pt-2 border-t border-slate-100 mt-2">
+            <span class="text-base font-black text-slate-900">${formatMoney(item.price)}</span>
+            ${isUnavailable ? `
+              <span class="text-xs font-semibold text-slate-400 italic">Unavailable</span>
+            ` : `
+              <button onclick="addToTicket(${item.item_id})" class="bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs px-3.5 py-2 rounded-lg shadow-sm transition-all min-h-[44px] flex items-center justify-center">
+                + Add to Order
+              </button>
+            `}
+          </div>
+        </div>
+      `;
+    }
+
+    // Render Menu Items (grouped by category for All Items, or filtered by selected category)
+    function renderMenu() {
+      const grid = document.getElementById("menu-items-grid");
+      if (!grid) return;
+
+      if (activeCategory === "all") {
+        const grouped = {};
+        for (const item of menuItems) {
+          if (!grouped[item.category_name]) grouped[item.category_name] = [];
+          grouped[item.category_name].push(item);
+        }
+
+        grid.className = "flex flex-col gap-6";
+        grid.innerHTML = Object.entries(grouped).map(([catName, items]) => `
+          <div>
+            <div class="flex items-center justify-between pb-2 mb-3 border-b-2 border-slate-200">
+              <h2 class="text-base sm:text-lg font-black text-slate-900 tracking-tight">${catName}</h2>
+              <span class="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">${items.length} dishes</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              ${items.map(renderItemCard).join("")}
+            </div>
+          </div>
+        `).join("");
+      } else {
+        const filtered = menuItems.filter(i => i.category_name === activeCategory);
+        grid.className = "flex flex-col gap-4";
+        if (filtered.length === 0) {
+          grid.innerHTML = '<p class="text-sm text-slate-500 py-6 text-center">No items found in this category.</p>';
+          return;
+        }
+
+        grid.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between pb-2 mb-3 border-b-2 border-slate-200">
+              <h2 class="text-base sm:text-lg font-black text-slate-900 tracking-tight">${activeCategory}</h2>
+              <span class="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">${filtered.length} dishes</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              ${filtered.map(renderItemCard).join("")}
             </div>
           </div>
         `;
-      }).join("");
+      }
     }
 
     // Ticket State Operations
@@ -378,9 +429,9 @@
           </div>
         `;
         document.getElementById("ticket-count").textContent = "0";
-        document.getElementById("ticket-total").textContent = "$0.00";
+        document.getElementById("ticket-total").textContent = "₹0";
         document.getElementById("mobile-ticket-count").textContent = "0 items";
-        document.getElementById("mobile-ticket-total").textContent = "$0.00";
+        document.getElementById("mobile-ticket-total").textContent = "₹0";
         updateSaveButtonState();
         return;
       }

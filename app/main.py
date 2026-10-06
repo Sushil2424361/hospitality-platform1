@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import scoring
+from . import scoring, seed
 from .db import get_conn, init_db
 
 # Valid roles supported by the platform
@@ -72,8 +72,16 @@ class SpecialPatch(BaseModel):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Run database initialization on application startup."""
+    """Run database initialization and auto-seeding on application startup."""
     init_db()
+    with get_conn() as conn:
+        row = conn.execute("SELECT COUNT(*) AS c FROM menu_items").fetchone()
+        menu_count = row["c"] if row else 0
+
+    if menu_count == 0:
+        # Database has no menu items (e.g. fresh deploy or ephemeral Render disk)
+        seed.run()
+
     yield
 
 
@@ -440,6 +448,13 @@ def get_specials(
 
     with get_conn() as conn:
         rows = conn.execute(query, tuple(params)).fetchall()
+        # Fallback: if no specials for today and no explicit date was passed, check tomorrow
+        if not rows and not specials_date:
+            tomorrow_date = (date.today() + timedelta(days=1)).isoformat()
+            fallback_params = [tomorrow_date]
+            if status_filter:
+                fallback_params.append(status_filter)
+            rows = conn.execute(query, tuple(fallback_params)).fetchall()
 
     return [dict(r) for r in rows]
 
@@ -481,6 +496,12 @@ def update_special(
                 )
             new_item_id = payload.item_id
             reason_text = f"Swapped by {role} for {new_item['item_name']}."
+
+            # Remove duplicate suggestion for same date and item if it exists
+            conn.execute("""
+                DELETE FROM special_suggestions
+                WHERE for_date = ? AND item_id = ? AND suggestion_id != ?
+            """, (existing["for_date"], new_item_id, suggestion_id))
 
         conn.execute("""
             UPDATE special_suggestions

@@ -1,8 +1,14 @@
 /**
- * Hospitality Management Platform - Shared Frontend Helpers
- * Provides API client with X-Role header, role switcher, navigation,
+ * Shared Frontend Helpers for Dakshin Flavors
+ * Central brand config, API client with X-Role header, role switcher, navigation,
  * currency formatter, toast notifications, and PWA registration.
  */
+
+// Brand Configuration - Define once, use everywhere
+const BRAND = {
+  restaurant: "Dakshin Flavors",
+  software: "Manajerz"
+};
 
 // Available staff roles
 const ROLES = ["Waiter", "Manager", "Owner"];
@@ -31,11 +37,11 @@ function setRole(newRole) {
 }
 
 /**
- * Formats a number as a USD currency string ($0.00)
+ * Formats a number as an Indian Rupee currency string (e.g. ₹35, ₹80, ₹110)
  */
 function formatMoney(amount) {
   const val = Number(amount) || 0;
-  return "$" + val.toFixed(2);
+  return "₹" + (val % 1 === 0 ? val.toFixed(0) : val.toFixed(2));
 }
 
 /**
@@ -136,6 +142,16 @@ function renderNav(activeTab) {
   const role = getRole();
   const isManagerOrOwner = role === "Manager" || role === "Owner";
 
+  // Dynamically set document title based on BRAND.restaurant
+  const pageTitles = {
+    order: "Order Entry",
+    guest: "Guest Card",
+    specials: "Specials",
+    dashboard: "Dashboard"
+  };
+  const pageTitle = pageTitles[activeTab] || "Operations";
+  document.title = `${BRAND.restaurant} | ${pageTitle}`;
+
   const links = [
     { id: "order", label: "Order Entry", href: "/static/index.html", show: true },
     { id: "guest", label: "Guest Card", href: "/static/guest.html", show: true },
@@ -151,7 +167,7 @@ function renderNav(activeTab) {
         ? "bg-slate-900 text-white font-semibold shadow-sm"
         : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-medium";
       return `
-        <a href="${link.href}" class="px-3 py-2 rounded-md text-sm transition-colors whitespace-nowrap min-h-[44px] flex items-center ${activeClasses}">
+        <a href="${link.href}" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm transition-colors whitespace-nowrap min-h-[44px] flex items-center ${activeClasses}">
           ${link.label}
         </a>
       `;
@@ -160,35 +176,38 @@ function renderNav(activeTab) {
 
   navContainer.innerHTML = `
     <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16 gap-2">
-        <!-- Logo / App Name -->
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-base shadow">
-            H
+      <div class="max-w-7xl mx-auto px-3 sm:px-6">
+        <!-- Top row: Brand title + subtitle on left, Role Switcher on right -->
+        <div class="flex items-center justify-between py-2 sm:py-3 gap-2">
+          <!-- Text-only branding: big bold restaurant name, smaller subtitle below -->
+          <div class="flex flex-col justify-center min-w-0 pr-2">
+            <span class="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 tracking-tight leading-tight truncate">
+              ${BRAND.restaurant}
+            </span>
+            <span class="text-[11px] sm:text-xs text-slate-500 font-normal leading-tight">
+              powered by <span class="font-bold text-slate-700">${BRAND.software}</span>
+            </span>
           </div>
-          <span class="font-bold text-slate-800 tracking-tight text-base sm:text-lg hidden xs:inline">
-            Hospitality
-          </span>
+
+          <!-- Role Switcher -->
+          <div class="flex items-center gap-1.5 flex-shrink-0">
+            <label for="role-select" class="text-xs font-semibold uppercase tracking-wider text-slate-500 hidden sm:inline">
+              Role:
+            </label>
+            <div class="relative">
+              <select id="role-select" class="bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs sm:text-sm font-bold rounded-lg border border-slate-300 px-2.5 py-1.5 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm">
+                <option value="Waiter" ${role === "Waiter" ? "selected" : ""}>Waiter</option>
+                <option value="Manager" ${role === "Manager" ? "selected" : ""}>Manager</option>
+                <option value="Owner" ${role === "Owner" ? "selected" : ""}>Owner</option>
+              </select>
+            </div>
+          </div>
         </div>
 
-        <!-- Navigation Links -->
-        <nav class="flex items-center gap-1 overflow-x-auto py-1 scrollbar-none">
+        <!-- Navigation Links row -->
+        <nav class="flex items-center gap-1 sm:gap-2 overflow-x-auto pb-2 pt-0.5 border-t border-slate-100 scrollbar-none">
           ${linksHtml}
         </nav>
-
-        <!-- Role Switcher -->
-        <div class="flex items-center gap-2 flex-shrink-0">
-          <label for="role-select" class="text-xs font-semibold uppercase tracking-wider text-slate-500 hidden md:inline">
-            Role:
-          </label>
-          <div class="relative">
-            <select id="role-select" class="bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs sm:text-sm font-semibold rounded-lg border border-slate-300 px-2.5 py-2 pr-7 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm">
-              <option value="Waiter" ${role === "Waiter" ? "selected" : ""}>Waiter</option>
-              <option value="Manager" ${role === "Manager" ? "selected" : ""}>Manager</option>
-              <option value="Owner" ${role === "Owner" ? "selected" : ""}>Owner</option>
-            </select>
-          </div>
-        </div>
       </div>
     </header>
   `;
@@ -200,6 +219,23 @@ function renderNav(activeTab) {
       setRole(e.target.value);
     });
   }
+
+  // Inject light footer reading "powered by Manajerz"
+  renderFooter();
+}
+
+/**
+ * Renders a lightweight, non-obtrusive footer reading "powered by Manajerz"
+ */
+function renderFooter() {
+  let footer = document.getElementById("app-footer");
+  if (!footer) {
+    footer = document.createElement("footer");
+    footer.id = "app-footer";
+    footer.className = "py-3 text-center text-xs text-slate-400 mt-auto";
+    document.body.appendChild(footer);
+  }
+  footer.innerHTML = `<span>powered by <strong class="font-semibold text-slate-600">${BRAND.software}</strong></span>`;
 }
 
 // Register service worker for PWA installability

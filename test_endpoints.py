@@ -8,6 +8,12 @@ import urllib.error
 import urllib.request
 import sys
 
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 BASE_URL = "http://127.0.0.1:8000"
 
 
@@ -88,6 +94,7 @@ def run_all_tests():
     # Waiter gets menu without cost
     st, menu_waiter = make_request("/api/menu", headers={"X-Role": "Waiter"})
     assert_eq(st, 200, "GET /api/menu returns 200 for Waiter")
+    assert_eq(len(menu_waiter), 34, f"Menu has 34 items (got {len(menu_waiter)})")
     has_cost = any("cost" in item for item in menu_waiter)
     assert_eq(has_cost, False, "Menu for Waiter does NOT expose cost figures")
 
@@ -103,13 +110,13 @@ def run_all_tests():
     assert_eq(len(tables), 8, f"Tables endpoint returned {len(tables)} tables (expected 8)")
 
     print("\n--- 4. Testing Order Placement ---")
-    # Unavailable item test (Item 6 is 'Stuffed Mushrooms' which is unavailable)
+    # Unavailable item test (Item 34 is 'Elaneer (Tender Coconut)' which is unavailable)
     order_bad = {
         "table_id": 1,
-        "items": [{"item_id": 6, "quantity": 1}]
+        "items": [{"item_id": 34, "quantity": 1}]
     }
     st, res = make_request("/api/orders", method="POST", data=order_bad, headers={"X-Role": "Waiter"})
-    assert_eq(st, 400, "POST /api/orders with unavailable item rejects with 400 Bad Request")
+    assert_eq(st, 400, "POST /api/orders with unavailable item (Elaneer) rejects with 400 Bad Request")
 
     # Valid order placement
     order_good = {
@@ -117,7 +124,7 @@ def run_all_tests():
         "customer_id": 1,
         "items": [
             {"item_id": 1, "quantity": 2, "item_note": "Extra crispy"},
-            {"item_id": 7, "quantity": 1, "item_note": "No basil"}
+            {"item_id": 7, "quantity": 1, "item_note": "Crispy and hot"}
         ]
     }
     st, order_res = make_request("/api/orders", method="POST", data=order_good, headers={"X-Role": "Waiter"})
@@ -169,25 +176,25 @@ def run_all_tests():
         assert_eq(st, 200, f"PATCH /api/specials/{sugg_id} status to 'approved' returns 200")
         assert_eq(patch_res.get("status"), "approved", "Special status updated to 'approved'")
 
-        # Patch special: Swap item
+        # Patch special: Swap item (swap to Item 3: Steamed Idli (Pair))
         st, swap_res = make_request(f"/api/specials/{sugg_id}", method="PATCH",
                                     data={"item_id": 3}, headers={"X-Role": "Manager"})
-        assert_eq(st, 200, f"PATCH /api/specials/{sugg_id} swapped item to Soup of the Day (200)")
+        assert_eq(st, 200, f"PATCH /api/specials/{sugg_id} swapped item to Steamed Idli (Pair) (200)")
         assert_eq(swap_res.get("item_id"), 3, "Special item_id updated to 3")
 
     print("\n--- 7. Testing Reports ---")
     # Daily report as Manager (no profit margin figures)
     st, rep_mgr = make_request("/api/reports/daily", headers={"X-Role": "Manager"})
     assert_eq(st, 200, "GET /api/reports/daily returns 200 for Manager")
-    assert_eq("total_sales" in rep_mgr, True, f"Manager sees total_sales: ${rep_mgr.get('total_sales')}")
+    assert_eq("total_sales" in rep_mgr, True, f"Manager sees total_sales: ₹{rep_mgr.get('total_sales')}")
     assert_eq("total_cost" in rep_mgr, False, "Manager does NOT see total_cost")
     assert_eq("profit_margin_pct" in rep_mgr, False, "Manager does NOT see profit_margin_pct")
 
     # Daily report as Owner (with profit margin figures)
     st, rep_own = make_request("/api/reports/daily", headers={"X-Role": "Owner"})
     assert_eq(st, 200, "GET /api/reports/daily returns 200 for Owner")
-    assert_eq("total_cost" in rep_own, True, f"Owner sees total_cost: ${rep_own.get('total_cost')}")
-    assert_eq("total_profit" in rep_own, True, f"Owner sees total_profit: ${rep_own.get('total_profit')}")
+    assert_eq("total_cost" in rep_own, True, f"Owner sees total_cost: ₹{rep_own.get('total_cost')}")
+    assert_eq("total_profit" in rep_own, True, f"Owner sees total_profit: ₹{rep_own.get('total_profit')}")
     assert_eq("profit_margin_pct" in rep_own, True, f"Owner sees profit_margin_pct: {rep_own.get('profit_margin_pct')}%")
 
     # Items report as Manager (no margin figures)
@@ -201,7 +208,7 @@ def run_all_tests():
     st, items_own = make_request("/api/reports/items", headers={"X-Role": "Owner"})
     assert_eq(st, 200, "GET /api/reports/items returns 200 for Owner")
     assert_eq("margin_pct" in items_own["top_5"][0], True, f"Owner sees margin_pct in top 5: {items_own['top_5'][0].get('margin_pct')}%")
-    assert_eq("profit" in items_own["top_5"][0], True, f"Owner sees profit in top 5: ${items_own['top_5'][0].get('profit')}")
+    assert_eq("profit" in items_own["top_5"][0], True, f"Owner sees profit in top 5: ₹{items_own['top_5'][0].get('profit')}")
 
     print(f"\n==========================================")
     print(f"Results: {passed} passed, {failed} failed")

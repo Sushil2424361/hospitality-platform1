@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5" />
+      <stop offset="100%" stop-color="#3730a3" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#1e1b4b" flood-opacity="0.3" />
+    </filter>
+  </defs>
+
+  <!-- Background rounded squircle -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+
+  <!-- Inner Plate / Dish Circle -->
+  <circle cx="256" cy="270" r="148" fill="none" stroke="#ffffff" stroke-width="14" opacity="0.35" />
+  <circle cx="256" cy="270" r="120" fill="none" stroke="#ffffff" stroke-width="6" opacity="0.2" />
+
+  <!-- Steam curves -->
+  <path d="M216 118 Q226 95 216 75" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round" opacity="0.8" />
+  <path d="M256 110 Q266 85 256 65" fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" opacity="0.95" />
+  <path d="M296 118 Q306 95 296 75" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round" opacity="0.8" />
+
+  <!-- Center "H" Brand Mark & Cloche Silhouette -->
+  <!-- Cloche Top Knob -->
+  <circle cx="256" cy="154" r="14" fill="#ffffff" filter="url(#shadow)" />
+  <!-- Cloche Dome Arch -->
+  <path d="M166 264 C166 186 346 186 346 264 Z" fill="#ffffff" filter="url(#shadow)" />
+  <!-- Base Platter Rim -->
+  <rect x="144" y="268" width="224" height="18" rx="9" fill="#ffffff" filter="url(#shadow)" />
+
+  <!-- Prominent "H" Cutout inside Dome -->
+  <path d="M232 208 L232 250 M280 208 L280 250 M232 229 L280 229" fill="none" stroke="#4f46e5" stroke-width="10" stroke-linecap="round" />
+
+  <!-- Hospitality Tagline / Accent Star -->
+  <circle cx="256" cy="336" r="6" fill="#fbbf24" />
+  <circle cx="232" cy="336" r="4" fill="#ffffff" opacity="0.6" />
+  <circle cx="280" cy="336" r="4" fill="#ffffff" opacity="0.6" />
+</svg>

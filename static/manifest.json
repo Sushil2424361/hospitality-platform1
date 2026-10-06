@@ -1,16 +1,30 @@
 {
-  "name": "Hospitality Management Platform",
-  "short_name": "Hospitality",
+  "name": "Dakshin Flavors",
+  "short_name": "Dakshin",
   "start_url": "/static/index.html",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#f8fafc",
   "theme_color": "#4f46e5",
-  "description": "Internal staff restaurant operations, order entry, guest card, and specials.",
+  "description": "Restaurant management, powered by Manajerz",
   "icons": [
     {
-      "src": "/static/icon.png",
+      "src": "/static/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ]
 }

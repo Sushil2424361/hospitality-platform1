@@ -2,14 +2,17 @@
  * Simple Service Worker for Hospitality Management Platform
  * Caches static shell assets. Explicitly NEVER caches /api requests.
  */
-const CACHE_NAME = "hospitality-shell-v1";
+const CACHE_NAME = "dakshin-v4";
 const STATIC_ASSETS = [
   "/static/index.html",
   "/static/guest.html",
   "/static/specials.html",
   "/static/dashboard.html",
   "/static/app.js",
-  "/static/manifest.json"
+  "/static/manifest.json",
+  "/static/icon.svg",
+  "/static/icon-192.png",
+  "/static/icon-512.png"
 ];
 
 self.addEventListener("install", (event) => {
