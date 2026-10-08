@@ -98,43 +98,11 @@ Role-based access control is simulated via a top-bar dropdown. The selected role
 
 ---
 
-## Deploying to Render (Free Tier)
-
-This repository includes a `render.yaml` blueprint ready for deployment on [Render](https://render.com).
-
-### Step 1: Push Your Code to GitHub
-1. Open PowerShell in your project folder:
-   ```powershell
-   git add .
-   git commit -m "Hospitality PWA: Dakshin Flavors edition"
-   ```
-2. Create a new repository on your GitHub account (e.g., `hospitality-platform`).
-3. Link and push your local branch:
-   ```powershell
-   git remote add origin https://github.com/<YOUR_GITHUB_USERNAME>/hospitality-platform.git
-   git branch -M main
-   git push -u origin main
-   ```
-
-### Step 2: Deploy on Render
-1. Go to [render.com](https://render.com) and sign in (using GitHub).
-2. Click **New +** in the top navigation bar and select **Web Service**.
-3. Choose **Build and deploy from a Git repository** and connect your `hospitality-platform` repository.
-4. Fill in the settings:
-   - **Name**: `hospitality-platform` (or your preferred name)
-   - **Region**: Choose the closest region (e.g., Oregon or Frankfurt)
-   - **Branch**: `main`
-   - **Runtime**: `Python 3`
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-   - **Instance Type**: `Free`
-5. Click **Create Web Service**.
-6. Render will install dependencies and start the app. The startup lifecycle will automatically create and seed the SQLite database within 2 seconds.
-
----
-
 ## Known Limits (Demo Scope)
 
 1. **Simulated Authentication**: Staff roles are chosen via the UI dropdown and communicated via `X-Role` headers. There are no passwords or JWT tokens because this is a rapid internal demo without guest-facing access.
 2. **Ephemeral Disk on Free Hosting**: Render's free tier spins down servers after inactivity and resets disk state on new containers. Our automatic startup seeder handles this by repopulating data on boot.
 3. **Single-Node SQLite**: SQLite is embedded and single-file. It is lightweight and fast for a local small restaurant, but not intended for horizontally scaled, multi-server clusters.
+
+
+## To access the live website click on https://hospitality-platform1.onrender.com/
